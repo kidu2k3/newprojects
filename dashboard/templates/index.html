@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Relay Network Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; margin-top: 10px; }
+        td, th { border: 1px solid #666; padding: 4px 8px; }
+    </style>
+</head>
+<body>
+    <h1>Relay Network Dashboard</h1>
+    <p>Total active relays: <span id="relay-count">0</span></p>
+    <table id="relay-table">
+        <thead>
+            <tr><th>Host</th><th>Port</th><th>Last seen (s ago)</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <script>
+        async function fetchData() {
+            const stats = await fetch('/stats').then(r => r.json());
+            document.getElementById('relay-count').textContent = stats.relay_count;
+            const relays = await fetch('/relays').then(r => r.json());
+            const tbody = document.querySelector('#relay-table tbody');
+            tbody.innerHTML = '';
+            const now = Date.now() / 1000;
+            relays.forEach(r => {
+                const row = document.createElement('tr');
+                const age = Math.round(now - r.last);
+                row.innerHTML = `<td>${r.host}</td><td>${r.port}</td><td>${age}</td>`;
+                tbody.appendChild(row);
+            });
+        }
+        fetchData();
+        setInterval(fetchData, 3000);
+    </script>
+</body>
+</html>
