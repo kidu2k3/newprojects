@@ -57,37 +57,4 @@ Send a file:
 python3 client/client.py send <host> <port> <file> --hops 3
 ```
 
-### Client dashboard
-
-You can run a small web dashboard to control the client. It allows toggling
-automatic key exchange and displays the current connection status.
-
-```
-python3 client/dashboard_app.py
-```
-
-Use `POST /connect` to establish a connection to the first available relay and
-`POST /autokey` with `{"enabled": false}` to disable automatic key exchange.
-
-## Example: single relay with two endpoints
-
-1. Start the dashboard:
-   ```bash
-   python3 dashboard/dashboard.py
-   ```
-2. In another terminal, start a relay and register it:
-   ```bash
-   PYTHONPATH=. python3 relay/relay.py --host 127.0.0.1 --port 9000 &
-   curl -X POST -H "Content-Type: application/json" -d '{"host":"127.0.0.1","port":9000}' http://127.0.0.1:5000/register
-   ```
-3. Launch a simple server (for example using netcat) to receive messages:
-   ```bash
-   nc -l -p 10000
-   ```
-4. Connect through the relay from another shell:
-   ```bash
-   PYTHONPATH=. python3 client/client.py chat 127.0.0.1 10000 --hops 1
-   ```
-   Typed messages will travel through the relay to the server and responses will appear back in the client.
-
 This code is a minimal prototype and should not be considered secure or production ready.
