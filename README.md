@@ -23,6 +23,10 @@ pip install cryptography pynacl aiohttp flask
 python3 dashboard/dashboard.py
 ```
 
+Open `http://localhost:5000/` in a browser to view a small web dashboard that
+shows active relays and overall statistics. The page refreshes every few
+seconds to display current information.
+
 ## Starting a relay
 
 ```

@@ -1,8 +1,14 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
+import os
 import time
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(__file__)
+app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'))
 relays = {}
+
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 @app.route('/register', methods=['POST'])
 def register():
