@@ -1,0 +1,38 @@
+from flask import Flask, request, jsonify, render_template
+import os
+import time
+
+BASE_DIR = os.path.dirname(__file__)
+app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'))
+relays = {}
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.json
+    key = f"{data['host']}:{data['port']}"
+    relays[key] = {'host': data['host'], 'port': data['port'], 'last': time.time()}
+    return 'ok'
+
+@app.route('/heartbeat', methods=['POST'])
+def heartbeat():
+    data = request.json
+    key = f"{data['host']}:{data['port']}"
+    if key in relays:
+        relays[key]['last'] = time.time()
+    return 'ok'
+
+@app.route('/relays', methods=['GET'])
+def list_relays():
+    now = time.time()
+    return jsonify([v for v in relays.values() if now - v['last'] < 60])
+
+@app.route('/stats', methods=['GET'])
+def stats():
+    return jsonify({'relay_count': len(relays)})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0')

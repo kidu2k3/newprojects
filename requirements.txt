@@ -1,0 +1,4 @@
+aiohttp
+flask
+pynacl
+cryptography
