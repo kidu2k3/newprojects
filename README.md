@@ -59,6 +59,18 @@ python3 relay/relay.py --host 0.0.0.0 --port 9000
 Each relay should POST to `http://dashboard:5000/register` on startup (not implemented in this demo). The dashboard exposes `/relays` for the client to fetch available relays.
 Relays also generate periodic fake traffic to random peers retrieved from the dashboard. This helps obscure real connections. Use `--dashboard` to point the relay at a custom dashboard URL.
 
+You can also use the convenience script which registers the relay and sends periodic heartbeats:
+
+```
+python3 scripts/start_relay.py --host 0.0.0.0 --port 9000 --dashboard http://localhost:5000
+```
+
+To start a local dashboard and a relay together:
+
+```
+python3 scripts/start_relay_with_dashboard.py --relay-port 9000 --dashboard-port 5000
+```
+
 ## Client usage
 
 List available relays:
@@ -94,10 +106,11 @@ sudo python3 client/client.py iface --name altnet0 --addr fd00::1/64
 ### Client dashboard
 
 You can run a small web dashboard to control the client. It allows toggling
-automatic key exchange and displays the current connection status.
+automatic key exchange and displays the current connection status. A helper
+script is included to launch it:
 
 ```
-python3 client/dashboard_app.py
+python3 scripts/start_client_dashboard.py --port 8000
 ```
 
 Use `POST /connect` to establish a connection to the first available relay and
@@ -105,13 +118,12 @@ Use `POST /connect` to establish a connection to the first available relay and
 
 ## Example: single relay with two endpoints
 
-1. Start the dashboard:
+1. Start the dashboard and a relay together:
    ```bash
-   python3 dashboard/dashboard.py
+   python3 scripts/start_relay_with_dashboard.py --relay-port 9000 --dashboard-port 5000
    ```
-2. In another terminal, start a relay and register it:
+2. (Optional) If you run the dashboard separately, register your relay manually:
    ```bash
-   python3 relay/relay.py --host 127.0.0.1 --port 9000 &
    curl -X POST -H "Content-Type: application/json" -d '{"host":"127.0.0.1","port":9000}' http://127.0.0.1:5000/register
    ```
 3. Launch a simple server (for example using netcat) to receive messages:
