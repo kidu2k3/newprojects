@@ -1,65 +1,66 @@
-# Product Context & Requirements
+# Product Context
 
 ## User Needs
+- Private, secure alternative to traditional internet
+- Self-hosted services and content
+- Control over routing and domain naming
+- Easy-to-use client interface for network access
+- Seamless peer discovery and relay selection
+- Support for internal-only apps (web, messaging, storage, forums, etc.)
+- App store for internal apps and updates
+- Offline content access and distributed storage
+- Fine-grained access control (per-user, per-domain, per-app)
+- Invite-only or referral-based onboarding
 
-### Relay Network Needs
-- Ability to route messages through multiple relays
-- File transfer capabilities
-- Secure communication channels
-- Basic network connectivity testing
+## Core Requirements
 
-### Monitoring Needs
-- Basic relay server status tracking
-- Simple connection monitoring
-- Active relay discovery
-- Basic health checks
+### Network Security
+- End-to-end encryption via WireGuard and Noise Protocol
+- Key rotation and replay protection
+- Secure handshake protocol
+- Private addressing using IPv6 ULA space
+- Zero-trust access controls (per-app WG keys)
+- Directory/auth server integration (LDAP, Firebase, PKI)
+- Invite-only/referral join process
 
-### Administration Needs
-- Relay registration management
-- Basic status monitoring
-- Simple metrics collection
-- Network testing utilities
+### Network Infrastructure 
+- Relay mesh network for traffic routing (full mesh, multi-hop, BGP)
+- IPv6 ULA addressing and routing (fc00::/7)
+- Peer discovery and relay rotation
+- Internal DNS for .alt and similar domains (authoritative and recursive)
+- Split DNS for internal/external domains
+- DNSSEC and blockchain-based DNS (Handshake/Namecoin)
+- Domain registry for .alt (central, git, blockchain/DHT)
+- Dashboard for relay and DNS management
+- Client application for user access (Tauri/Electron GUI)
+- NAT traversal (TURN/DERP)
+- Overlay routing (Yggdrasil, cjdns)
+- Distributed DNS (DHT-based)
 
-## Product Requirements
+### Service Architecture
+- Support for internal web, messaging, storage, forums, and API services
+- Content distribution: IPFS/ZeroNet/CDN, offline support
+- App store for internal apps and updates
+- Access control and authentication
+- Per-user/domain/subnet permissions
+- Audit logging and monitoring
+## Success Criteria
+1. Secure Communications
+   - All traffic encrypted end-to-end
+   - No unauthorized access possible
+   - Protection against replay attacks
 
-### Core Relay Functionality
-- Multi-hop message routing
-- Chain-based connections
-- File transfer support
-- Basic encryption
-- Connection management
+2. Network Reliability
+   - Stable relay connections
+   - Automatic key rotation
+   - Heartbeat monitoring
 
-### Relay Server Features
-- Message forwarding capabilities
-- Chain routing implementation
-- Fake traffic generation
-- Basic status reporting
-- Connection handling
+3. Usability
+   - Simple client setup process
+   - Clear relay status dashboard
+   - Easy service deployment
 
-### Dashboard Features
-- Relay registration system
-- Active relay listing
-- Basic status monitoring
-- Simple web interface
-- Metrics endpoint
-
-### Client Features
-- Relay discovery via dashboard
-- Chain-based connections
-- File transfer capability
-- Basic ping functionality
-- Virtual interface support
-
-### Network Utilities
-- Basic ping functionality
-- Relay availability testing
-- Simple connection checks
-- Status verification
-
-## Success Metrics
-- Successful message routing
-- File transfer reliability
-- Connection stability
-- Basic monitoring functionality
-- Test suite coverage
-- Core security implementation
+4. Scalability
+   - Support for multiple relays
+   - Distributed content hosting
+   - Extensible for future services

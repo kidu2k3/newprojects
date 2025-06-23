@@ -1,0 +1,103 @@
+{
+  "relay_addrs": [
+    "fd42:1337:beef:0:b476:5c4a:bcb7:2a96",
+    "fd42:1337:beef:0:1477:f776:8065:ea67",
+    "fd42:1337:beef:0:6085:455:486a:e48b",
+    "fd42:1337:beef:0:9261:a606:766:2dff",
+    "fd42:1337:beef:0:626e:7fb0:58d0:644a",
+    "fd42:1337:beef:0:3233:269b:4991:e6d9",
+    "fd42:1337:beef::1:86a3",
+    "fd42:1337:beef:0:2d28:a251:9be0:cd76",
+    "fd42:1337:beef:0:d43c:6884:e73d:59a6",
+    "fd42:1337:beef:0:51d6:89bd:f093:69bd",
+    "fd42:1337:beef:0:e5b4:d415:7a24:75b2",
+    "fd42:1337:beef:0:745d:962b:eb33:de2a",
+    "fd42:1337:beef:0:ce8c:c9c2:e2b3:c02b",
+    "fd42:1337:beef:0:a842:92ea:2a2:8f8",
+    "fd42:1337:beef:0:3bc4:c47c:2d54:ad91",
+    "fd42:1337:beef:0:e27f:2bae:bd4f:d83",
+    "fd42:1337:beef:0:d284:9036:84d4:b46e",
+    "fd42:1337:beef:0:dfde:2d33:1928:88a6",
+    "fd42:1337:beef:0:c475:31c:4fd3:32c2",
+    "fd42:1337:beef:0:cca:c2b:5b63:a50",
+    "fd42:1337:beef:0:60e8:7db8:e995:6bf6",
+    "fd42:1337:beef:0:6038:9793:a83b:7338",
+    "fd42:1337:beef:0:7ce:3359:b151:c86d",
+    "fd42:1337:beef:0:5016:e1e:be6e:ea39",
+    "fd42:1337:beef:0:c14e:1021:c5c3:f575",
+    "fd42:1337:beef::1:86a0",
+    "fd42:1337:beef:0:29f1:ba65:f0ee:cae",
+    "fd42:1337:beef:0:19de:f712:92b5:c363",
+    "fd42:1337:beef:0:77cf:d00:48c2:319e",
+    "fd42:1337:beef:0:3eff:9ccb:6e8d:ac78",
+    "fd42:1337:beef::1:86a2",
+    "fd42:1337:beef:0:379a:e3c4:d3:8ee3",
+    "fd42:1337:beef::1:86a4",
+    "fd42:1337:beef:0:d267:3b5a:c052:5501",
+    "fd42:1337:beef:0:e78b:316f:f220:fa5",
+    "fd42:1337:beef:0:dd6f:6498:63ba:189c",
+    "fd42:1337:beef:0:a3ec:c755:9990:62b7",
+    "fd42:1337:beef:0:16a1:80fc:4886:c297",
+    "fd42:1337:beef:0:5197:1b8:57f9:2dfa",
+    "fd42:1337:beef:0:3019:d51f:903f:d659",
+    "fd42:1337:beef:0:a049:7c07:1e84:8ac8",
+    "fd42:1337:beef:0:e1cd:496f:3cc9:55e6",
+    "fd42:1337:beef:0:b77c:b906:f508:1f7a",
+    "fd42:1337:beef:0:b116:a3a6:1c6:6674",
+    "fd42:1337:beef:0:6350:a889:9296:49b9",
+    "fd42:1337:beef:0:8213:b54e:abbb:13a7",
+    "fd42:1337:beef::1:86a1",
+    "fd42:1337:beef:0:a167:fe34:f57e:a39c"
+  ],
+  "client_addrs": [
+    "fd42:1337:beef:1:4712:c8fd:68d2:be8a",
+    "fd42:1337:beef:1:e7f1:c7f7:e:29a1",
+    "fd42:1337:beef:1:8e7a:6ab1:ff5c:3466",
+    "fd42:1337:beef:1:b5b0:5eee:885f:f2c9",
+    "fd42:1337:beef:1:f919:8353:a66d:6b16",
+    "fd42:1337:beef:1:bcf6:698e:2bc8:9733",
+    "fd42:1337:beef:1:5c30:4fc5:8835:1b87"
+  ],
+  "service_addrs": [
+    "fd42:1337:beef:2:d9a9:48b4:e8b7:8206",
+    "fd42:1337:beef:2:7a35:a8a9:afe1:a43a",
+    "fd42:1337:beef:2:2aeb:d08c:5a20:1c00",
+    "fd42:1337:beef:2:408b:6721:4598:f74d",
+    "fd42:1337:beef:2:c340:89a7:7b90:f233",
+    "fd42:1337:beef:2:7ae3:d3db:e617:f4a7",
+    "fd42:1337:beef:2:9547:ff7a:a464:83a9"
+  ],
+  "routes": {
+    "relay": [
+      {
+        "destination": "fd42:1337:beef:1::/64",
+        "via": "fd42:1337:beef::1",
+        "metric": 1
+      },
+      {
+        "destination": "fd42:1337:beef::/64",
+        "via": "fd42:1337:beef:0:6350:a889:9296:49b9",
+        "metric": 1
+      }
+    ],
+    "client": [
+      {
+        "destination": "fd42:1337:beef:2::/64",
+        "via": "fd42:1337:beef::2",
+        "metric": 1
+      },
+      {
+        "destination": "fd42:1337:beef:1::/64",
+        "via": "fd42:1337:beef:0:6350:a889:9296:49b9",
+        "metric": 1
+      }
+    ],
+    "service": [
+      {
+        "destination": "fd42:1337:beef:2::/64",
+        "via": "fd42:1337:beef:0:6350:a889:9296:49b9",
+        "metric": 1
+      }
+    ]
+  }
+}

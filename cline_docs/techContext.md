@@ -1,137 +1,219 @@
-# Technical Context & Stack
+# Technical Context
 
 ## Core Technologies
 
-### Primary Stack
-- Python (Core implementation language)
-- Flask web framework
-- Asyncio for async operations
-- Aiohttp for async HTTP
+### Network Infrastructure
+1. WireGuard
+   - Purpose: Encrypted tunnel creation
+   - Implementation: WireGuard-go
+   - Requirements: Kernel module or userspace implementation
 
-### Project Components
-- Client module (Python-based)
-  - Async client implementation
-  - Connection management
-  - Relay chain setup
-  - File transfer capabilities
-  
-- Dashboard module (Python/Flask)
-  - Relay registration
-  - Heartbeat monitoring
-  - Basic status tracking
-  - Simple web interface
-  
-- Relay module (Python-based)
-  - Async relay server
-  - Message forwarding
-  - Handshake protocol
-  - Fake traffic generation
+2. IPv6 ULA Space
+   - Range: fc00::/7
+   - Example Subnet: fd42:1337:beef::/48
+   - Purpose: Internal addressing
 
-## Project Structure
+3. DNS Servers
+   - BIND9: Authoritative DNS for .alt domains
+   - Unbound/CoreDNS: Recursive resolver for internal lookups
+   - RNDC/nsupdate: Secure dynamic DNS management
+
+4. Routing & Mesh
+   - BGP (FRR/BIRD): Dynamic routing between relays
+   - Overlay: Yggdrasil, cjdns for mesh optimization
+   - NAT traversal: TURN/DERP
+
+5. Client GUI
+   - Tauri: Cross-platform desktop app for user access (in progress)
+   - Status: Basic UI implemented, features pending
+
+6. Content Distribution
+   - IPFS, ZeroNet, CDN: Internal/offline content sharing (planned)
+
+7. Authentication & Directory
+   - LDAP, Firebase, PKI: Directory/auth server integration (planned)
+
+8. Blockchain/DHT
+   - Handshake, Namecoin: Blockchain-based DNS (planned)
+   - DHT: Distributed DNS registry (planned)
+
+### Security Components
+1. Noise Protocol
+   - Pattern: Noise_IK_25519_ChaChaPoly_BLAKE2s
+   - Implementation: Python noise library
+   - Current Status:
+     - ✅ X25519 key exchange implemented
+     - ✅ ChaChaPoly encryption working
+     - ✅ BLAKE2s hashing integrated
+     - 🔄 Edge case handling needed
+     - ❌ Security event logging pending
+
+2. Security Parameters
+```python
+# Current implementation in tunnel.py
+MAX_MESSAGE_SIZE = 65535  # Maximum size of encrypted messages
+HANDSHAKE_TIMEOUT = 30.0  # Default handshake timeout in seconds
+KEY_ROTATION_INTERVAL = 3600  # Rotate session keys every hour
+REPLAY_WINDOW = 300  # 5 minute replay protection window
+MESSAGES_BEFORE_ROTATION = 100  # Number of messages before key rotation
+ROTATION_TIMEOUT = 5.0  # Key rotation timeout in seconds
 ```
-/
-├── client/               # Client implementation
-│   ├── __init__.py
-│   ├── client.py
-│   └── dashboard_app.py
-├── dashboard/           # Dashboard implementation
-│   ├── __init__.py
-│   ├── dashboard.py
-│   └── templates/
-│       └── index.html
-├── relay/              # Relay server implementation
-│   ├── __init__.py
-│   └── relay.py
-├── scripts/            # Management scripts
-│   ├── start_client_dashboard.py
-│   ├── start_relay_with_dashboard.py
-│   └── start_relay.py
-├── tests/             # Test suite
-│   ├── __init__.py
-│   ├── test_handshake.py
-│   └── test_integration.py
-├── requirements.txt    # Production dependencies
-└── requirements-dev.txt # Development dependencies
-```
+
+### Backend Services
+1. Flask Framework
+   - Purpose: Dashboard and API
+   - Components:
+     - Templates for UI
+     - JSON API endpoints
+     - Static file serving
+   - Status: Basic functionality implemented, authentication pending
+
+2. Python Core
+   - Version: 3.8+ recommended (for improved AsyncIO support)
+   - Key Libraries:
+     - asyncio for async operations (needs error handling improvements)
+     - json for data serialization
+     - struct for binary data handling
+     - typing for type hints
+   - Testing Requirements:
+     - pytest for unit tests
+     - coverage.py for test coverage reporting
 
 ## Development Environment
 
-### Prerequisites
-- Python environment
-- pip package manager
-- Git version control
+### Project Structure
+1. Package Management
+   - requirements.txt for production
+   - requirements-dev.txt for development
+
+2. Testing Framework
+   - pytest for unit tests
+   - Integration test suite (needs expansion)
+   - Test coverage monitoring needed
 
 ### Dependencies
-- Production requirements: requirements.txt
-- Development requirements: requirements-dev.txt
+```
+Core:
+- noise
+- flask
+- asyncio
+- wireguard-tools
+- cryptography>=3.4.0
 
-## Infrastructure
+Development:
+- pytest>=7.0.0
+- black
+- flake8
+- mypy
+- coverage
+- pytest-asyncio
+- pytest-cov
+```
 
-### Production Deployment
-- Live TLD Server: https://p9hwiqc538k0.manus.space
-- Relay Server: https://58hpi8clvo93.manus.space
-- Frontend Client: https://yxtufqnd.manus.space
+## Technical Constraints
 
-### Network Infrastructure
-- WireGuard VPN integration
-- IPv6 overlay network
-- Multi-server relay architecture
-- Load balancing system
+### Performance Limits
+1. Message Handling
+   - Max message size: 64KB
+   - Replay window: 5 minutes
+   - Key rotation: Every hour or 100 messages
+   - Rotation timeout: 5 seconds
 
-## Component Architecture
+2. Network Constraints
+   - IPv6 ULA space only
+   - WireGuard compatibility required
+   - Reliable internet connection needed
+   - Heartbeat interval: 60 seconds
 
-### Client Module
-- Core client functionality
-- Dashboard app integration
-- Network communication handling
+### Security Requirements
+1. Cryptographic
+   - Strong static key pairs required
+   - Noise Protocol compliance mandatory
+   - Regular key rotation
+   - Edge case handling needed:
+     - Silent failure recovery
+     - Timeout handling
+     - Connection loss recovery
 
-### Dashboard Module
-- Web interface implementation
-- Template-based rendering
-- Status monitoring interface
+2. Protocol Requirements
+   - Handshake completion < 30s
+   - No message replay within window
+   - Valid timestamps (+/- 60s)
+   - Proper error handling needed for:
+     - Failed handshakes
+     - Rotation failures
+     - Replay attacks
 
-### Relay Module
-- Relay server implementation
-- Connection management
-- Network routing
+### Scalability Considerations
+1. Relay Management
+   - Memory-based relay tracking (limitation)
+   - 60s heartbeat timeout
+   - No persistent storage currently
+   - Need monitoring for:
+     - Memory usage
+     - Connection count
+     - Message throughput
 
-## Testing Infrastructure
-- Python unittest framework
-- Integration tests
-- Handshake testing
-- Test coverage tracking
+2. Dashboard Performance
+   - In-memory state management (limitation)
+   - Real-time updates via polling
+   - No authentication (internal only)
+   - Missing:
+     - Load testing
+     - Performance metrics
+     - Resource monitoring
 
-## Security Implementation
-- WireGuard encryption
-- Secure key exchange
-- Access control system
-- IPv6 networking security
+## Future Considerations
 
-## Performance Characteristics
-- Real-time update capability
-- Low-latency communication
-- Efficient data handling
-- Network optimization
+### Planned Improvements
+1. Authentication System
+   - User management
+   - Access control
+   - Session handling
+   - Directory integration (LDAP, Firebase, PKI)
+   - Zero-trust and invite-only onboarding
 
-## Monitoring & Metrics
-- Server health tracking
-- Client connection monitoring
-- Performance analytics
-- Network diagnostics
+2. Storage Layer
+   - Persistent relay state
+   - User configurations
+   - Access logs
+   - Security event logs
 
-## Scripts & Tools
-- Client dashboard startup
-- Relay server management
-- Development utilities
+3. Monitoring
+   - Metrics collection
+   - Performance tracking
+   - Alert system
+   - Security event monitoring
 
-## Version Control
-- Git-based workflow
-- Feature branch strategy
-- Version tagging
-- Release management
+4. Network & DNS
+   - IPv6 ULA routing and relay mesh (BGP, overlay)
+   - Peer discovery and relay rotation
+   - Split DNS, recursive resolver, DNSSEC/blockchain DNS
+   - Domain registry (central, git, blockchain/DHT)
+   - NAT traversal (TURN/DERP)
+   - Overlay routing (Yggdrasil, cjdns)
+   - Distributed DNS (DHT-based)
 
-## Documentation
-- Code documentation
-- Setup guides
-- Testing procedures
-- Deployment instructions
+5. Content & Services
+   - Internal web, messaging, storage, forums, APIs
+   - Content distribution: IPFS/ZeroNet/CDN, offline support
+   - App store for internal apps and updates
+
+### Technical Debt
+1. Current Limitations
+   - In-memory state only
+   - No persistent storage
+   - Basic authentication
+   - Manual relay discovery
+   - Limited error handling
+   - Missing security event logging
+   - Incomplete test coverage
+
+2. Improvement Areas
+   - Database integration
+   - Service discovery
+   - Load balancing
+   - Metrics/monitoring
+   - Security monitoring
+   - Test automation
+   - Performance optimization

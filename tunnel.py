@@ -5,14 +5,32 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import logging.handlers
 import secrets
 import struct
 import time
+from enum import Enum
 from typing import Any, Dict, Optional, Tuple
 from noise.connection import NoiseConnection, Keypair
 from noise.exceptions import NoiseInvalidMessage
 
+# Configure main logger
 logger = logging.getLogger(__name__)
+
+# Configure security event logger
+security_logger = logging.getLogger('security_events')
+security_logger.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(event_type)s - %(message)s')
+
+# Security event types
+class SecurityEventType(Enum):
+    HANDSHAKE_FAILED = "HANDSHAKE_FAILED"
+    ROTATION_FAILED = "ROTATION_FAILED"
+    REPLAY_DETECTED = "REPLAY_DETECTED"
+    AUTH_FAILED = "AUTH_FAILED"
+    CONNECTION_ERROR = "CONNECTION_ERROR"
+    HANDSHAKE_SUCCESS = "HANDSHAKE_SUCCESS"
+    ROTATION_SUCCESS = "ROTATION_SUCCESS"
 
 # Constants for security parameters
 MAX_MESSAGE_SIZE = 65535  # Maximum size of encrypted messages
@@ -21,6 +39,15 @@ KEY_ROTATION_INTERVAL = 3600  # Rotate session keys every hour
 REPLAY_WINDOW = 300  # 5 minute replay protection window
 MESSAGES_BEFORE_ROTATION = 100  # Number of messages before key rotation
 ROTATION_TIMEOUT = 5.0  # Key rotation timeout in seconds
+
+def log_security_event(event_type: SecurityEventType, details: str, extra: Dict[str, Any] = None):
+    """Log a security event with contextual details."""
+    extra = extra or {}
+    extra['event_type'] = event_type.value
+    security_logger.info(
+        details,
+        extra=extra
+    )
 
 class HandshakeError(Exception):
     """Raised when handshake fails."""
@@ -58,6 +85,11 @@ class SecurityContext:
     async def rotate_keys(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> NoiseConnection:
         """Perform key rotation with peer."""
         if self._rotating:
+            log_security_event(
+                SecurityEventType.ROTATION_FAILED,
+                "Key rotation already in progress",
+                {"is_initiator": self._is_initiator}
+            )
             raise RotationError("Key rotation already in progress")
         
         self._rotating = True
@@ -90,12 +122,25 @@ class SecurityContext:
                 size_bytes = await asyncio.wait_for(reader.readexactly(4), ROTATION_TIMEOUT)
                 ack_len = struct.unpack("!I", size_bytes)[0]
                 if ack_len != 36:
+                    log_security_event(
+                        SecurityEventType.ROTATION_FAILED,
+                        f"Invalid ACK size during rotation",
+                        {"expected": 36, "received": ack_len}
+                    )
                     raise RotationError(f"Invalid ACK size: {ack_len}")
                 ack = await asyncio.wait_for(reader.readexactly(36), ROTATION_TIMEOUT)
                 if not ack.startswith(b"ACK:"):
+                    log_security_event(
+                        SecurityEventType.ROTATION_FAILED,
+                        "Invalid rotation response header"
+                    )
                     raise RotationError("Invalid rotation response header")
                 resp_nonce = ack[4:]  # Skip ACK: prefix
                 if resp_nonce != nonce:
+                    log_security_event(
+                        SecurityEventType.ROTATION_FAILED,
+                        "Nonce mismatch in rotation response"
+                    )
                     raise RotationError("Nonce mismatch in rotation response")
                 
                 try:
@@ -112,10 +157,19 @@ class SecurityContext:
                     len_bytes = await asyncio.wait_for(reader.readexactly(4), ROTATION_TIMEOUT)
                     resp_len = struct.unpack("!I", len_bytes)[0]
                     if resp_len > MAX_MESSAGE_SIZE:
+                        log_security_event(
+                            SecurityEventType.ROTATION_FAILED,
+                            "Response message too large during rotation",
+                            {"size": resp_len}
+                        )
                         raise RotationError(f"Response message too large: {resp_len}")
                     resp = await asyncio.wait_for(reader.readexactly(resp_len), ROTATION_TIMEOUT)
                     
                     if not resp.startswith(b"HSH:"):
+                        log_security_event(
+                            SecurityEventType.ROTATION_FAILED,
+                            "Invalid response prefix during rotation"
+                        )
                         raise RotationError("Invalid response prefix")
                     resp_data = resp[4:]  # Skip HSH: prefix
                     peer_payload = new_noise.read_message(resp_data)
@@ -123,8 +177,16 @@ class SecurityContext:
                     logger.debug("Processed e, ee, se - handshake complete")
                     
                 except (asyncio.TimeoutError, asyncio.IncompleteReadError) as e:
+                    log_security_event(
+                        SecurityEventType.CONNECTION_ERROR,
+                        f"Connection error during rotation handshake: {e}"
+                    )
                     raise RotationError(f"Connection error during handshake: {e}") from e
                 except Exception as e:
+                    log_security_event(
+                        SecurityEventType.ROTATION_FAILED,
+                        f"Failed to process handshake data: {e}"
+                    )
                     raise RotationError(f"Failed to process handshake data: {e}") from e
                 
             else:
@@ -133,10 +195,19 @@ class SecurityContext:
                     header_size = await asyncio.wait_for(reader.readexactly(4), ROTATION_TIMEOUT)
                     size = struct.unpack("!I", header_size)[0]
                     if size != 36:
+                        log_security_event(
+                            SecurityEventType.ROTATION_FAILED,
+                            f"Invalid request size during rotation",
+                            {"expected": 36, "received": size}
+                        )
                         raise RotationError(f"Invalid request size: {size}")
                     
                     msg = await asyncio.wait_for(reader.readexactly(36), ROTATION_TIMEOUT)
                     if not msg.startswith(b"ROT:"):
+                        log_security_event(
+                            SecurityEventType.ROTATION_FAILED,
+                            "Invalid rotation request header"
+                        )
                         raise RotationError("Invalid rotation request header")
                     nonce = msg[4:]  # Skip ROT: prefix
                     
@@ -150,10 +221,19 @@ class SecurityContext:
                     len_bytes = await asyncio.wait_for(reader.readexactly(4), ROTATION_TIMEOUT)
                     msg_len = struct.unpack("!I", len_bytes)[0]
                     if msg_len > MAX_MESSAGE_SIZE:
+                        log_security_event(
+                            SecurityEventType.ROTATION_FAILED,
+                            "Handshake message too large during rotation",
+                            {"size": msg_len}
+                        )
                         raise RotationError(f"Handshake message too large: {msg_len}")
                     msg1 = await asyncio.wait_for(reader.readexactly(msg_len), ROTATION_TIMEOUT)
                     
                     if not msg1.startswith(b"HSH:"):
+                        log_security_event(
+                            SecurityEventType.ROTATION_FAILED,
+                            "Invalid message prefix during rotation"
+                        )
                         raise RotationError("Invalid message prefix")
                     
                     # Process initiator's message and generate response
@@ -172,14 +252,32 @@ class SecurityContext:
                     logger.debug("Sent e, ee, se - handshake complete")
                     
                 except (asyncio.TimeoutError, asyncio.IncompleteReadError) as e:
+                    log_security_event(
+                        SecurityEventType.CONNECTION_ERROR,
+                        f"Connection error during rotation handshake: {e}"
+                    )
                     raise RotationError(f"Connection error during handshake: {e}") from e
                 except Exception as e:
+                    log_security_event(
+                        SecurityEventType.ROTATION_FAILED,
+                        f"Failed to process handshake message: {e}"
+                    )
                     raise RotationError(f"Failed to process handshake message: {e}") from e
             
+            log_security_event(
+                SecurityEventType.ROTATION_SUCCESS,
+                "Key rotation completed successfully",
+                {"is_initiator": self._is_initiator}
+            )
             logger.debug("Key rotation complete")
             return new_noise
         
         except Exception as e:
+            log_security_event(
+                SecurityEventType.ROTATION_FAILED,
+                f"Key rotation failed: {e}",
+                {"is_initiator": self._is_initiator}
+            )
             logger.error("Key rotation failed: %s", e)
             raise RotationError(f"Key rotation failed: {e}")
         
@@ -217,6 +315,10 @@ class SecurityContext:
             raise
         except Exception as e:
             # Wrap unexpected errors in RotationError
+            log_security_event(
+                SecurityEventType.ROTATION_FAILED,
+                f"Unexpected error during key rotation: {e}"
+            )
             raise RotationError(f"Unexpected error during key rotation: {e}") from e
     
     def clean_replay_window(self):
@@ -232,15 +334,30 @@ class SecurityContext:
         self.clean_replay_window()
         
         if timestamp < time.time() - REPLAY_WINDOW:
+            log_security_event(
+                SecurityEventType.REPLAY_DETECTED,
+                "Message timestamp too old",
+                {"timestamp": timestamp}
+            )
             return False  # Too old
             
         if timestamp > time.time() + 60:
+            log_security_event(
+                SecurityEventType.REPLAY_DETECTED,
+                "Message timestamp too far in future",
+                {"timestamp": timestamp}
+            )
             return False  # Too far in future
             
         if timestamp not in self.seen_nonces:
             self.seen_nonces[timestamp] = set()
             
         if nonce in self.seen_nonces[timestamp]:
+            log_security_event(
+                SecurityEventType.REPLAY_DETECTED,
+                "Duplicate nonce detected",
+                {"timestamp": timestamp}
+            )
             return False  # Replayed nonce
             
         self.seen_nonces[timestamp].add(nonce)
@@ -291,6 +408,11 @@ async def handshake(
             len_bytes = await asyncio.wait_for(reader.readexactly(4), timeout)
             length = struct.unpack("!I", len_bytes)[0]
             if length > MAX_MESSAGE_SIZE:
+                log_security_event(
+                    SecurityEventType.HANDSHAKE_FAILED,
+                    f"Message too large during handshake",
+                    {"size": length}
+                )
                 raise HandshakeError(f"Message too large: {length}")
             resp = await asyncio.wait_for(reader.readexactly(length), timeout)
             peer_payload = noise.read_message(resp)
@@ -300,6 +422,11 @@ async def handshake(
             len_bytes = await asyncio.wait_for(reader.readexactly(4), timeout) 
             length = struct.unpack("!I", len_bytes)[0]
             if length > MAX_MESSAGE_SIZE:
+                log_security_event(
+                    SecurityEventType.HANDSHAKE_FAILED,
+                    f"Message too large during handshake",
+                    {"size": length}
+                )
                 raise HandshakeError(f"Message too large: {length}")
             data = await asyncio.wait_for(reader.readexactly(length), timeout)
             peer_payload = noise.read_message(data)
@@ -322,14 +449,32 @@ async def handshake(
             is_initiator=initiator
         )
         if not context.check_replay(peer_ts, peer_nonce):
+            log_security_event(
+                SecurityEventType.REPLAY_DETECTED,
+                "Replay attempt during handshake",
+                {"timestamp": peer_ts}
+            )
             raise ReplayError("Detected replay attempt")
             
         peer_info = peer_data.get("info", {})
+        log_security_event(
+            SecurityEventType.HANDSHAKE_SUCCESS,
+            "Authenticated handshake completed successfully",
+            {
+                "is_initiator": initiator,
+                "peer_info": peer_info
+            }
+        )
         logger.debug("Authenticated handshake complete with info %s", peer_info)
         
         return context, peer_info
         
     except (asyncio.TimeoutError, json.JSONDecodeError, ValueError) as e:
+        log_security_event(
+            SecurityEventType.HANDSHAKE_FAILED,
+            f"Handshake failed: {str(e)}",
+            {"is_initiator": initiator}
+        )
         raise HandshakeError(f"Handshake failed: {str(e)}")
 
 async def encrypt_message(context: SecurityContext, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, data: bytes) -> bytes:
@@ -354,10 +499,19 @@ async def read_message(reader: asyncio.StreamReader, context: SecurityContext, w
     try:
         len_bytes = await reader.read(4)
         if not len_bytes:  # Connection closed
+            log_security_event(
+                SecurityEventType.CONNECTION_ERROR,
+                "Connection closed by peer"
+            )
             raise ConnectionError("Connection closed by peer")
             
         size_prefix = struct.unpack('!I', len_bytes)[0]
         if size_prefix > MAX_MESSAGE_SIZE:
+            log_security_event(
+                SecurityEventType.AUTH_FAILED,
+                f"Message too large",
+                {"size": size_prefix}
+            )
             raise ValueError(f"Message too large: {size_prefix}")
             
         # Read and process the message
@@ -414,7 +568,17 @@ async def read_message(reader: asyncio.StreamReader, context: SecurityContext, w
                     context.message_counter = 0
                     context._rotation_time = None
                     
+                    log_security_event(
+                        SecurityEventType.ROTATION_SUCCESS,
+                        "Server completed key rotation",
+                        {"is_initiator": False}
+                    )
+                    
                 except Exception as e:
+                    log_security_event(
+                        SecurityEventType.ROTATION_FAILED,
+                        f"Server key rotation failed: {e}"
+                    )
                     logger.error("Server key rotation failed: %s", e)
                     context._rotation_time = None
                 return None
@@ -426,11 +590,19 @@ async def read_message(reader: asyncio.StreamReader, context: SecurityContext, w
         logger.debug("Decrypting %d bytes", size_prefix)
         enc = msg
         if not enc:
+            log_security_event(
+                SecurityEventType.CONNECTION_ERROR,
+                "Connection closed by peer during message read"
+            )
             raise ConnectionError("Connection closed by peer")
             
         try:
             dec = context.noise.decrypt(enc)
         except NoiseInvalidMessage:
+            log_security_event(
+                SecurityEventType.AUTH_FAILED,
+                "Invalid message authentication - possible replay attack"
+            )
             logger.warning("Invalid message detected - likely replay attack")
             raise ReplayError("Invalid message authentication - possible replay attack")
             
@@ -441,15 +613,28 @@ async def read_message(reader: asyncio.StreamReader, context: SecurityContext, w
         nonce = bytes.fromhex(msg_data.get("nonce"))
         
         if not context.check_replay(ts, nonce):
+            log_security_event(
+                SecurityEventType.REPLAY_DETECTED,
+                "Replay attempt detected",
+                {"timestamp": ts}
+            )
             raise ReplayError("Detected replay attempt")
             
         return bytes.fromhex(msg_data["payload"])
         
     except (struct.error, json.JSONDecodeError, ValueError, KeyError) as e:
+        log_security_event(
+            SecurityEventType.AUTH_FAILED,
+            f"Failed to decrypt message: {e}"
+        )
         logger.error("Failed to decrypt message: %s", e)
         return None
     except ConnectionError:
         raise  # Re-raise connection errors to handle disconnection
     except Exception as e:
+        log_security_event(
+            SecurityEventType.AUTH_FAILED,
+            f"Unexpected error in read_message: {e}"
+        )
         logger.error("Unexpected error in read_message: %s", e)
         return None
